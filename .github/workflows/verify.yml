@@ -1,0 +1,225 @@
+name: verify
+
+# The Task 5 evidence: a real `brew install` / `scoop install` on real
+# runners, and - when upgrade_from is supplied - a real upgrade between two
+# published versions.
+#
+# Install tests alone prove nothing about updates, so the upgrade legs
+# install the EARLIER version first by checking the tap/bucket out at its
+# `manifests-v<version>` tag, then move back to main and upgrade.
+
+on:
+  workflow_call:
+    inputs:
+      expect_version: { type: string, required: true }
+      upgrade_from:   { type: string, required: false, default: '' }
+  workflow_dispatch:
+    inputs:
+      expect_version:
+        description: 'Version the install must report (e.g. 1.1.0)'
+        required: true
+        type: string
+      upgrade_from:
+        description: 'Optional earlier version to install first, then upgrade from (e.g. 1.0.0)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  brew:
+    name: brew / ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest,  label: macOS arm64 }
+          - { os: macos-13,      label: macOS x86_64 }
+          - { os: ubuntu-latest, label: Linux x86_64 }
+    steps:
+      - name: Put Homebrew on PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+            echo /home/linuxbrew/.linuxbrew/bin >> "$GITHUB_PATH"
+          fi
+
+      - name: Tap
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew --version
+          owner="${GITHUB_REPOSITORY%%/*}"
+          # Repo <owner>/homebrew-cx is tapped as <owner>/cx.
+          brew tap "$owner/cx" "https://github.com/$GITHUB_REPOSITORY"
+
+      - name: Install, and upgrade if requested
+        shell: bash
+        env:
+          EXPECT: ${{ inputs.expect_version }}
+          FROM:   ${{ inputs.upgrade_from }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY%%/*}"
+          formula="$owner/cx/cx"
+          tap_dir="$(brew --repo "$owner/cx")"
+
+          assert_version() {
+            want="$1"
+            got="$(cx --version)"
+            echo "cx --version -> $got"
+            case "$got" in
+              *"$want"*) echo "OK: reports $want" ;;
+              *) echo "FAIL: expected $want"; exit 1 ;;
+            esac
+          }
+
+          if [ -n "$FROM" ]; then
+            echo "::group::install v$FROM from the tap at manifests-v$FROM"
+            git -C "$tap_dir" fetch --unshallow --quiet 2>/dev/null || true
+            git -C "$tap_dir" fetch --tags --force --quiet
+            git -C "$tap_dir" checkout --quiet "manifests-v$FROM"
+            brew install "$formula"
+            assert_version "$FROM"
+            echo "::endgroup::"
+
+            echo "::group::upgrade to v$EXPECT"
+            git -C "$tap_dir" checkout --quiet main
+            git -C "$tap_dir" pull --quiet --ff-only
+            brew outdated "$formula" || true
+            brew upgrade "$formula"
+            echo "::endgroup::"
+          else
+            brew install "$formula"
+          fi
+
+          assert_version "$EXPECT"
+
+      - name: brew test
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY%%/*}"
+          brew test "$owner/cx/cx"
+
+      - name: Uninstall
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY%%/*}"
+          brew uninstall "$owner/cx/cx"
+          if command -v cx > /dev/null; then
+            echo "FAIL: cx still on PATH after uninstall"; exit 1
+          fi
+          echo "OK: clean uninstall"
+
+  scoop:
+    name: scoop / Windows x86_64
+    runs-on: windows-latest
+    steps:
+      - name: Install Scoop
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          Invoke-WebRequest -UseBasicParsing get.scoop.sh -OutFile install.ps1
+          # GitHub's windows runners are administrator sessions.
+          .\install.ps1 -RunAsAdmin
+          "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install, and upgrade if requested
+        shell: powershell
+        env:
+          EXPECT: ${{ inputs.expect_version }}
+          FROM:   ${{ inputs.upgrade_from }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          scoop bucket add cx "https://github.com/$env:GITHUB_REPOSITORY"
+          $bucket = "$env:USERPROFILE\scoop\buckets\cx"
+
+          function Assert-Version($want) {
+            $got = (& cx --version | Out-String).Trim()
+            Write-Host "cx --version -> $got"
+            if ($got -notmatch [regex]::Escape($want)) { throw "FAIL: expected $want, got '$got'" }
+            Write-Host "OK: reports $want"
+          }
+
+          if ($env:FROM) {
+            Write-Host "::group::install v$($env:FROM) from the bucket at manifests-v$($env:FROM)"
+            git -C $bucket fetch --tags --force
+            git -C $bucket checkout "manifests-v$($env:FROM)"
+            scoop install cx
+            Assert-Version $env:FROM
+            Write-Host "::endgroup::"
+
+            Write-Host "::group::upgrade to v$($env:EXPECT)"
+            git -C $bucket checkout main
+            git -C $bucket pull --ff-only
+            scoop status
+            scoop update cx
+            Write-Host "::endgroup::"
+          } else {
+            scoop install cx
+          }
+
+          Assert-Version $env:EXPECT
+
+      - name: checkver resolves against public GitHub
+        shell: powershell
+        run: |
+          # This is the step that fails outright against the internal GHE
+          # host, because Scoop's github checkver mode fetches anonymously.
+          $ErrorActionPreference = 'Stop'
+          scoop checkver cx cx
+
+      - name: Uninstall
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          scoop uninstall cx
+          if (Get-Command cx -ErrorAction SilentlyContinue) { throw "FAIL: cx still on PATH" }
+          Write-Host "OK: clean uninstall"
+
+  sas-spike:
+    # Does a long query string on the download URL break Homebrew's or
+    # Scoop's filename inference? Answers the open question on Option A
+    # (Azure Blob + read-only SAS) in the distribution memo.
+    #
+    # Informational: a failure here records the answer, it does not mean
+    # the release itself is bad.
+    name: SAS query-string spike / ${{ matrix.label }}
+    continue-on-error: true
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  label: brew Linux }
+          - { os: windows-latest, label: scoop Windows }
+    steps:
+      - name: brew install cx-sas
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+            export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
+          fi
+          owner="${GITHUB_REPOSITORY%%/*}"
+          brew tap "$owner/cx" "https://github.com/$GITHUB_REPOSITORY"
+          brew install --verbose "$owner/cx/cx-sas"
+          cx --version
+
+      - name: scoop install cx-sas
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          Invoke-WebRequest -UseBasicParsing get.scoop.sh -OutFile install.ps1
+          .\install.ps1 -RunAsAdmin
+          $env:PATH = "$env:USERPROFILE\scoop\shims;$env:PATH"
+          scoop bucket add cx "https://github.com/$env:GITHUB_REPOSITORY"
+          scoop install cx-sas
+          & cx --version

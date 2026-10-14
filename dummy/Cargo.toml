@@ -1,0 +1,20 @@
+[package]
+name = "cx-dummy"
+version = "0.0.0"            # placeholder; CI stamps CX_VERSION from the git tag
+edition = "2021"
+license = "MIT"
+publish = false
+description = "Distribution-rehearsal stand-in for the cx CLI. No product functionality."
+
+[[bin]]
+name = "cx"
+path = "src/main.rs"
+
+# Mirrors the toolkit's size-tuned release profile so the archives are
+# representative of the real thing.
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+opt-level = "z"
+panic = "abort"

@@ -1,0 +1,169 @@
+name: release
+
+# Build every target, publish one GitHub Release with all archives plus
+# SHA256SUMS, regenerate the Homebrew/Scoop manifests from those checksums,
+# then run the install verification.
+#
+# This workflow is the blueprint for the ADO stage in the real repo
+# (pipelines/azure-pipelines.yml): same stages, same order.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build, without the leading v (e.g. 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.asset_os }}-${{ matrix.asset_arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu, asset_os: linux,   asset_arch: x86_64, ext: tar.gz }
+          - { os: macos-latest,   target: aarch64-apple-darwin,     asset_os: darwin,  asset_arch: arm64,  ext: tar.gz }
+          - { os: macos-latest,   target: x86_64-apple-darwin,      asset_os: darwin,  asset_arch: x86_64, ext: tar.gz }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc,   asset_os: windows, asset_arch: x86_64, ext: zip }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          v="${{ inputs.version }}"
+          [ -n "$v" ] || v="${GITHUB_REF_NAME#v}"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "building cx v$v for ${{ matrix.target }}"
+
+      - name: Add Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build
+        shell: bash
+        env:
+          CX_VERSION: ${{ steps.ver.outputs.version }}
+        run: cargo build --release --manifest-path dummy/Cargo.toml --target ${{ matrix.target }}
+
+      - name: Archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="cx-v${{ steps.ver.outputs.version }}-${{ matrix.asset_os }}-${{ matrix.asset_arch }}"
+          out="dummy/target/${{ matrix.target }}/release"
+          mkdir -p dist stage
+          # Archives are flat - a single cx / cx.exe at the root - so that
+          # Homebrew's `bin.install "cx"` and Scoop's `"bin": "cx.exe"`
+          # work with no extract_dir. This matches the real artifacts.
+          if [ "${{ matrix.ext }}" = zip ]; then
+            cp "$out/cx.exe" stage/
+            (cd stage && 7z a -tzip "../dist/$name.zip" cx.exe) > /dev/null
+          else
+            cp "$out/cx" stage/
+            tar -czf "dist/$name.tar.gz" -C stage cx
+          fi
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.asset_os }}-${{ matrix.asset_arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: staged
+          pattern: archive-*
+          merge-multiple: true
+
+      - name: Collect archives and checksum
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          v="${{ inputs.version }}"
+          [ -n "$v" ] || v="${GITHUB_REF_NAME#v}"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          mkdir -p dist && mv staged/* dist/
+          cd dist
+          # One SHA256SUMS for the whole release. Scoop's autoupdate.hash
+          # regex reads this file, so the `<hash>  <file>` format matters.
+          sha256sum cx-v*.tar.gz cx-v*.zip > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "v${{ steps.ver.outputs.version }}" dist/* \
+            --title "cx v${{ steps.ver.outputs.version }}" \
+            --notes "Distribution rehearsal build. The binary is a stand-in with no product functionality."
+
+  bump:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: staged
+          pattern: archive-*
+          merge-multiple: true
+
+      - name: Regenerate manifests
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist && mv staged/* dist/
+          (cd dist && sha256sum cx-v*.tar.gz cx-v*.zip > SHA256SUMS)
+          python3 scripts/render_manifests.py
+          git --no-pager diff --stat
+
+      - name: Commit and tag
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Formula bucket
+          if git diff --cached --quiet; then
+            echo 'manifests already current'
+          else
+            # [skip ci] so the push does not retrigger this workflow.
+            git commit -m "chore: bump cx to v$VERSION [skip ci]"
+            git push
+          fi
+          # The release tag points at the commit BEFORE the bump, so the
+          # upgrade test needs its own marker to check out a given
+          # version's manifests from.
+          git tag -f "manifests-v$VERSION"
+          git push -f origin "manifests-v$VERSION"
+
+  verify:
+    needs: [release, bump]
+    uses: ./.github/workflows/verify.yml
+    with:
+      expect_version: ${{ needs.release.outputs.version }}

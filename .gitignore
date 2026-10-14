@@ -1,0 +1,6 @@
+# Build output and release staging — never commit binaries.
+dist/
+stage/
+staged/
+target/
+dummy/target/

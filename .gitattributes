@@ -1,0 +1,7 @@
+# Homebrew formulae, shell blocks in workflows and the Scoop manifests
+# must ship with LF. A CRLF formula or script breaks on macOS/Linux.
+* text=auto eol=lf
+
+*.png binary
+*.tar.gz binary
+*.zip binary
