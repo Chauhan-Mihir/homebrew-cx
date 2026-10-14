@@ -9,24 +9,24 @@
 class Cx < Formula
   desc "Distribution rehearsal stand-in for the Commerce+ eXtensibility Toolkit CLI"
   homepage "https://github.com/Chauhan-Mihir/homebrew-cx"
-  version "1.1.0"
+  version "1.2.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.1.0/cx-v1.1.0-darwin-arm64.tar.gz"
-      sha256 "a42313700781a2635cd1dbccf47a578d9c6285ab99adff0d186fcaa94ab09c12"
+      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.2.0/cx-v1.2.0-darwin-arm64.tar.gz"
+      sha256 "efb85b3a4637901850a6606d04c211ea0d90db5296e69a4ceb2364e21cd1a635"
     end
     on_intel do
-      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.1.0/cx-v1.1.0-darwin-x86_64.tar.gz"
-      sha256 "3eeee01a22c4db475d33c8886ddd96dfbcf825b374c6eb9114fdf92245b1a8c7"
+      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.2.0/cx-v1.2.0-darwin-x86_64.tar.gz"
+      sha256 "6b55d133ce0e43e486ff63c52aae7aa9c6131fb030cc56a6d558a1700db3cf97"
     end
   end
 
   on_linux do
     on_intel do
-      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.1.0/cx-v1.1.0-linux-x86_64.tar.gz"
-      sha256 "8cff5844b4ed0d1cfe7ba6690bb1788acf87873af7c3d7449320dd88fcbf46f6"
+      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.2.0/cx-v1.2.0-linux-x86_64.tar.gz"
+      sha256 "15c67b76e7183d1c9248a23a02ca2b7c72f3f2e5bdd843c78aa85dd6526ca9df"
     end
   end
 
