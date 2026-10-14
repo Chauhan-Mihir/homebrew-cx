@@ -1,12 +1,12 @@
 {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Distribution rehearsal stand-in for the Commerce+ eXtensibility Toolkit CLI (no product functionality)",
     "homepage": "https://github.com/Chauhan-Mihir/homebrew-cx",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.0.0/cx-v1.0.0-windows-x86_64.zip?sv=2024-11-04&ss=b&srt=o&sp=r&se=2030-01-01T00:00:00Z&st=2026-01-01T00:00:00Z&spr=https&sig=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%3D",
-            "hash": "99c81eeffcac4c044f7c979d0f7340935760d0b1e786894af81e17240f221714"
+            "url": "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.1.0/cx-v1.1.0-windows-x86_64.zip?sv=2024-11-04&ss=b&srt=o&sp=r&se=2030-01-01T00:00:00Z&st=2026-01-01T00:00:00Z&spr=https&sig=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%3D",
+            "hash": "f5c918d15c0b759113e64259342de83843c83106c438797772f0fb588d8f6871"
         }
     },
     "bin": "cx.exe",
