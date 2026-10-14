@@ -13,24 +13,24 @@
 class CxSas < Formula
   desc "Distribution rehearsal stand-in for the Commerce+ eXtensibility Toolkit CLI"
   homepage "https://github.com/Chauhan-Mihir/homebrew-cx"
-  version "1.2.0"
+  version "1.3.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.2.0/cx-v1.2.0-darwin-arm64.tar.gz?sv=2024-11-04&ss=b&srt=o&sp=r&se=2030-01-01T00:00:00Z&st=2026-01-01T00:00:00Z&spr=https&sig=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%3D"
-      sha256 "efb85b3a4637901850a6606d04c211ea0d90db5296e69a4ceb2364e21cd1a635"
+      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.3.0/cx-v1.3.0-darwin-arm64.tar.gz?sv=2024-11-04&ss=b&srt=o&sp=r&se=2030-01-01T00:00:00Z&st=2026-01-01T00:00:00Z&spr=https&sig=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%3D"
+      sha256 "3cb1744d7d9c38e63cbdaa0a0655b61977970f278eb60498e45f8472a319cf5e"
     end
     on_intel do
-      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.2.0/cx-v1.2.0-darwin-x86_64.tar.gz?sv=2024-11-04&ss=b&srt=o&sp=r&se=2030-01-01T00:00:00Z&st=2026-01-01T00:00:00Z&spr=https&sig=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%3D"
-      sha256 "6b55d133ce0e43e486ff63c52aae7aa9c6131fb030cc56a6d558a1700db3cf97"
+      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.3.0/cx-v1.3.0-darwin-x86_64.tar.gz?sv=2024-11-04&ss=b&srt=o&sp=r&se=2030-01-01T00:00:00Z&st=2026-01-01T00:00:00Z&spr=https&sig=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%3D"
+      sha256 "c6c2e9bf8414532445b912e105bd53e3d1f69bc7d66a16cd706d24ded2db7098"
     end
   end
 
   on_linux do
     on_intel do
-      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.2.0/cx-v1.2.0-linux-x86_64.tar.gz?sv=2024-11-04&ss=b&srt=o&sp=r&se=2030-01-01T00:00:00Z&st=2026-01-01T00:00:00Z&spr=https&sig=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%3D"
-      sha256 "15c67b76e7183d1c9248a23a02ca2b7c72f3f2e5bdd843c78aa85dd6526ca9df"
+      url "https://github.com/Chauhan-Mihir/homebrew-cx/releases/download/v1.3.0/cx-v1.3.0-linux-x86_64.tar.gz?sv=2024-11-04&ss=b&srt=o&sp=r&se=2030-01-01T00:00:00Z&st=2026-01-01T00:00:00Z&spr=https&sig=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%3D"
+      sha256 "b63fc1258d3d3a7addb2ce5579f35cf3d46de55f0a20bf287d96e59937898096"
     end
   end
 
