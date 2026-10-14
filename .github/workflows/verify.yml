@@ -165,13 +165,23 @@ jobs:
 
           Assert-Version $env:EXPECT
 
-      - name: checkver resolves against public GitHub
+      - name: checkver and checkhashes resolve against public GitHub
         shell: powershell
         run: |
-          # This is the step that fails outright against the internal GHE
-          # host, because Scoop's github checkver mode fetches anonymously.
+          # `scoop checkver` is not a scoop subcommand -- it is a bucket
+          # maintainer script shipped inside the scoop app itself, so it
+          # has to be invoked by path.
+          #
+          # These are the steps that fail outright against the internal GHE
+          # host: both fetch anonymously, which that host answers with 401.
+          # checkver resolves the latest published version via the
+          # manifest's `checkver` block; checkhashes downloads the real
+          # asset and confirms the published hash matches it.
           $ErrorActionPreference = 'Stop'
-          scoop checkver cx cx
+          $bin = Join-Path $env:USERPROFILE 'scoop/apps/scoop/current/bin'
+          $dir = Join-Path $env:USERPROFILE 'scoop/buckets/cx/bucket'
+          & (Join-Path $bin 'checkver.ps1')    -App cx -Dir $dir
+          & (Join-Path $bin 'checkhashes.ps1') -App cx -Dir $dir
 
       - name: Uninstall
         shell: powershell
