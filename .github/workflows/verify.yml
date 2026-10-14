@@ -13,6 +13,7 @@ on:
     inputs:
       expect_version: { type: string, required: true }
       upgrade_from:   { type: string, required: false, default: '' }
+      macos_intel:    { type: boolean, required: false, default: false }
   workflow_dispatch:
     inputs:
       expect_version:
@@ -24,6 +25,11 @@ on:
         required: false
         default: ''
         type: string
+      macos_intel:
+        description: 'Also verify on an Intel Mac. Off by default: macos-13 is the only Intel label left and it queues for hours, which blocks the whole run from completing and keeps its logs locked.'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   brew:
@@ -31,11 +37,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # Intel macOS is opt-in via the `macos_intel` input, and off by
+      # default. `macos-13` is the last Intel label and it queues for hours
+      # on a public repo; because a queued job keeps the whole run "in
+      # progress", it also keeps every other job's logs unreadable. Note
+      # `continue-on-error` does NOT fix that -- it stops a failure failing
+      # the run, not a queue from blocking it. A conditional matrix is the
+      # only way to keep the leg available without it holding runs hostage.
       matrix:
-        include:
-          - { os: macos-latest,  label: macOS arm64 }
-          - { os: macos-13,      label: macOS x86_64 }
-          - { os: ubuntu-latest, label: Linux x86_64 }
+        include: >-
+          ${{ fromJSON(inputs.macos_intel
+          && '[{"os":"macos-latest","label":"macOS arm64"},{"os":"ubuntu-latest","label":"Linux x86_64"},{"os":"macos-13","label":"macOS x86_64"}]'
+          || '[{"os":"macos-latest","label":"macOS arm64"},{"os":"ubuntu-latest","label":"Linux x86_64"}]') }}
     steps:
       - name: Put Homebrew on PATH
         shell: bash
